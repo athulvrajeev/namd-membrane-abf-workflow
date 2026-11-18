@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use these scripts, please cite the associated article."
+title: "NAMD workflow for nanoparticle-membrane permeation free energies (SMD + ABF)"
+authors:
+  - family-names: Rajeev
+    given-names: Athul V.
+    orcid: "https://orcid.org/0009-0008-4748-3931"
+license: MIT
+preferred-citation:
+  type: article
+  authors:
+    - family-names: Rajeev
+      given-names: Athul V.
+    - family-names: Singh
+      given-names: G. K.
+    - family-names: Joshi
+      given-names: Himanshu
+    - family-names: Unni
+      given-names: Harikrishnan N.
+  title: "Comparing the translocation of the bare and surface-functionalised gold nanoparticle across normal and cancer-mimicking cell membranes"
+  journal: "Physical Chemistry Chemical Physics"
+  volume: 28
+  start: 19489
+  end: 19503
+  year: 2026
+  doi: "10.1039/D6CP01177B"

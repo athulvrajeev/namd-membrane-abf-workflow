@@ -1,0 +1,235 @@
+########################################################
+#### NAMD config file for simulating a box of water ####
+########################################################
+## Adapted from a NAMD configuration template provided by
+## Dr. Himanshu Joshi (IIT Hyderabad); modified by
+## Athul V. Rajeev for gold nanoparticle-lipid membrane
+## systems. See README.md (Acknowledgements).
+########################################################
+
+exec mkdir -p output_npt3
+
+## USER VARIABLES
+set sys gold_normal_lipid_40A
+set outPrefix  output_npt3/npt3
+set temperature  310
+
+
+################
+#### OUTPUT ####
+################
+outputName    $outPrefix ;# this tells namd where to write output files
+if {1} {
+set inputname      output_npt2/npt2
+binCoordinates     $inputname.restart.coor
+binVelocities      $inputname.restart.vel  ;# remove the "temperature" entry if you use this!
+extendedSystem     $inputname.restart.xsc
+}
+## number of steps between output writes
+dcdfreq             	9600 ;# simulation trajectory
+restartfreq            9600 ;# for restarting a simulation
+xstFreq             	9600 ;# log of simulation size
+outputEnergies      	9600 ;# info about the energy (printed in log file)
+outputPressure      	9600 ;# info about the pressure (printed in log file)
+
+###############
+#### INPUT ####
+###############
+structure   ${sys}.psf ;# initial structure file
+coordinates ${sys}.pdb ;# initial coordinate file
+proc get_first_ts { xscfile } {
+  set fd [open $xscfile r]
+  gets $fd
+  gets $fd
+  gets $fd line
+  set ts [lindex $line 0]
+  close $fd
+  return $ts
+}
+set firsttime [get_first_ts $inputname.restart.xsc]
+#set firsttime 0
+firstTimeStep         $firsttime ;# only affects dynamics for SMD simulations
+
+
+## instead of restart files
+if {0} {
+temperature $temperature ;# must invoke this cmd or "binvelocities file.vel"
+cellBasisVector1 81.5 0 0 ;# specify size of system or "extsystem file.xsc"
+cellBasisVector2 0 81.5 0  ;# NOTE: usually these should be about 1.5 Å smaller
+cellBasisVector3 0 0 129  ;#   than the dimensions specified to the solvate 
+                         ;#   plugin of VMD
+cellOrigin    0 0 0
+#COMmotion            yes ;# always (default is no and removes the center
+                         ;# of mass velocity whenever you restart a simulation
+       }
+
+################################
+#### THERMODYNAMIC ENSEMBLE ####
+################################
+
+## temperature control with Lowe-Andersen thermostat
+#loweAndersen        on
+#loweAndersenTemp    $temperature
+#loweAndersenRate      50
+#loweAndersenCutoff    2.7
+
+if {1} {
+langevin            on    ;# do langevin dynamics
+langevinDamping     0.5   ;# damping coefficient (gamma); let's try 0.5 /ps
+langevinTemp        $temperature
+langevinHydrogen    off    ;# don't couple langevin bath to hydrogens
+}
+# Constant Temperature Control
+if {0} {
+ langevin                        on
+ langevinTemp                    $temperature
+ langevinFile                    athul_alpha_orient_water_lang.pdb
+ langevinCol                     B
+}
+
+## perform constant pressure simulation
+if {1} {
+langevinPiston        on      ;# turn this off for constant volume sim
+langevinPistonTarget  1.01325 ;#  in bar -> 1 atm
+langevinPistonPeriod  2000.  
+langevinPistonDecay   1000.
+langevinPistonTemp    $temperature
+}
+## additional 
+useGroupPressure      yes ;# yes = don't needed for rigidBonds (see rigidBonds below)
+useFlexibleCell       yes ;# allow x,y,z dimensions to fluctuate independently?
+#useConstantArea     yes  ;#   if so, fix area of xy-plane?
+#useConstantRatio      yes  ;#   OR if so, fix aspect ratio of xy-plane?
+
+## affects output coordinates only, not dynamics
+wrapAll               on ;# since we use periodic boundary conditions we keep everything in one unit cell
+# alternatively use "wrapWater on" or comment out to leave system unwrapped
+
+
+###############################
+#### CALCULATION OF FORCES ####
+###############################
+## multiple timestepping: calculate some forces less frequently 
+timestep	    2   ;# use 2fs timestep (for bonded interactions)
+                        ;# all the other "frequencies" (really periods)
+                        ;#   are in terms of this
+
+nonBondedFreq	    1   ;# vdW and short range electrostatics every 2fs
+fullElectFrequency  3   ;# long range electrostatics every 6fs
+stepsPerCycle	    12  ;# re-evaluate parilistdist after this many steps
+
+## bonded interactions
+rigidBonds          all ;# freezes bond length between hydrogen and other atoms
+                        ;#   which is the fastest vibrational mode in an MD sim
+                        ;# holding this rigid allows 2fs timestep
+## short-range interactions
+exclude             scaled1-4
+1-4scaling          1.0
+switching           on
+switchdist           9
+cutoff              11
+pairlistdist        12
+margin              10.0
+
+
+## long-range interactions (particle-mesh ewald for long-range electrostatics)
+PmeGridSpacing	    1.2 ;# this is larger than the usual number
+PME                 yes
+
+## Force-Field Parameters
+paraTypeCharmm  on  ;# we always use CHARMM formatted parameters(even when using Amber)
+
+parameters /path/to/toppar/toppar_all36_carb_glycolipid.str
+parameters /path/to/toppar/toppar_all36_lipid_sphingo.str
+parameters /path/to/toppar/toppar_all36_lipid_detergent.str
+parameters /path/to/toppar/toppar_all36_lipid_prot.str
+parameters /path/to/toppar/toppar_all36_dphpc.str  
+parameters /path/to/toppar/par_all36_prot.prm
+parameters /path/to/toppar/par_all36_na.prm
+parameters /path/to/toppar/par_all36_lipid.prm
+parameters /path/to/toppar/par_all36_carb.prm
+parameters /path/to/toppar/par_all36_cgenff.prm   
+parameters /path/to/toppar/toppar_water_ions_cufix.str
+parameters /path/to/toppar/par_interface.prm                ##it is parameter file for AG, rest is for lipid
+parameters /path/to/toppar/toppar_all36_lipid_cholesterol.str    ##when added cholestrol
+
+#### MISC ####
+##############
+## parallel performance enhancing parametersfor supercomputing clusters
+##   (comment out for local use)
+# ldbUnloadZero			yes
+# twoAwayX			no
+# twoAwayY			no
+# twoAwayZ			no
+
+#########################
+#### EXTERNAL FORCES ####
+#########################
+
+## moving harmonic constraints and SMD
+# {4 7 2}
+#set axis {460 575 300} ;# depends on system (ssb35 vs ssb65)
+#set axisLength [veclength $axis]
+#set axis [vecscale [expr {1./$axisLength}] $axis] ;# axis is now normalized
+## moving constraints on bottom terminal nucleotride
+#constraints on
+#consRef    constrained_dna.pdb
+#consKFile  constrained_dna.pdb
+#consKCol B
+#constraintScaling 500 ;# k = 1000 : constraints uses U(x) = -k(x-x0)^2
+## SMD on terminal nucleotide on top
+if {0} {
+SMD           on
+SMDk          3  ;#Kcal/(mol sq.A)
+SMDfile       ${sys}_smd.pdb
+SMDOutputFreq 960
+SMDVel        0.00000167 ;#100A/120ns   ;#Angstrom/steps
+SMDDir        0 0 -1
+       }
+if {0} {
+extraBonds on
+extraBondsFile dna_chl_wations_mghh_extrabonds
+}
+if {0} {
+set waterCheckFreq              100
+set lipidCheckFreq              100
+set allatompdb                  lipid_LIC_wat_ions.pdb
+tclForces                       on
+tclForcesScript                 keep_water_out.tcl
+}
+#############
+#### RUN ####
+#############
+
+if {1} {
+constraints                     on
+consKCol                        B
+selectConstraints		 on
+#selectConstrX			 on
+#selectConstrY			 on
+selectConstrZ			 on
+constraintScaling	         2.39 ;#Kcal/(mol sq.A) #as per in paper equal to 1000 (KJ/mol sq.nm)
+consRef                         ${sys}_lipid_restrained.pdb
+consKFile                       ${sys}_lipid_restrained.pdb
+}
+
+if {1} {
+fixedAtoms                      on
+fixedAtomsForces                off
+fixedAtomsFile                  ${sys}_gold_restrained.pdb
+fixedAtomsCol                   B
+       }
+
+## after minimization, there will be 0 kinetic energy, and all potentials are at a local minimum
+## this loop injects energy into the system ten times to quickly bring the temperature up to $temperature
+if {0} {
+minimize [expr 48 *1000]
+for {set i 0} {$i < 4} {incr i} { 
+    run 480
+    reinitvels $temperature
+}
+       }
+
+#colvars              on
+#colvarsConfig      rmsd.in
+run 72000000 ;# simulate for a while (must be mutliple of stepsPerCycle)
