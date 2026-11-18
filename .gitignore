@@ -1,0 +1,25 @@
+# Simulation data (never commit trajectories or large outputs)
+*.dcd
+*.coor
+*.vel
+*.xsc
+*.xst
+*.psf
+*.pdb
+*.log
+*.grad
+*.count
+*.pmf
+*.colvars.state
+*.colvars.traj
+*.restart.*
+*.old
+output/
+input/
+data/
+# Python / editor
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*~
+.~lock*
